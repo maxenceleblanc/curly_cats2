@@ -7,7 +7,6 @@ import Sidebar from 'components/Sidebar';
 import StatusBar from 'components/StatusBar';
 import AppTitleBar from 'components/AppTitleBar';
 import ApiSpecPanel from 'components/ApiSpecPanel';
-// import ErrorCapture from 'components/ErrorCapture';
 import { useSelector } from 'react-redux';
 import { isElectron } from 'utils/common/platform';
 import StyledWrapper from './StyledWrapper';
@@ -16,6 +15,7 @@ import 'codemirror/theme/monokai.css';
 import 'codemirror/addon/scroll/simplescrollbars.css';
 import 'swagger-ui-react/swagger-ui.css';
 import Devtools from 'components/Devtools';
+import AiAssistant from 'components/AiAssistant';
 import useGrpcEventListeners from 'utils/network/grpc-event-listeners';
 import useWsEventListeners from 'utils/network/ws-event-listeners';
 import Portal from 'components/Portal';
@@ -135,7 +135,7 @@ export default function Main() {
           height: isConsoleOpen ? `calc(100vh - 60px - ${isConsoleOpen ? '300px' : '0px'})` : 'calc(100vh - 60px)'
         }}
       >
-        <StyledWrapper className={className} style={{ height: '100%', zIndex: 1 }}>
+        <StyledWrapper className={className} style={{ height: '100%', zIndex: 1, flex: 1, minWidth: 0 }}>
           <Sidebar />
           <section className="flex flex-grow flex-col overflow-hidden">
             {showApiSpecPage && activeApiSpecUid ? (
@@ -150,6 +150,7 @@ export default function Main() {
             )}
           </section>
         </StyledWrapper>
+        <AiAssistant />
       </div>
 
       <Devtools mainSectionRef={mainSectionRef} />

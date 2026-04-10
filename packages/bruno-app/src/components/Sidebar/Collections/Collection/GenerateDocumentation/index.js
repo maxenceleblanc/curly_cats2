@@ -83,7 +83,7 @@ const GenerateDocumentation = ({ onClose, collectionUid }) => {
         bruno: {
           ...openCollection.extensions?.bruno,
           exportedAt: new Date().toISOString(),
-          exportedUsing: version ? `Bruno/${version}` : 'Bruno'
+          exportedUsing: version ? `Curly CATS/${version}` : 'Curly CATS'
         }
       };
 

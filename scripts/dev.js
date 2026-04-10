@@ -1,6 +1,7 @@
 const { spawn } = require('child_process');
 const path = require('path');
 
+
 // ANSI color codes
 const colors = {
   reset: '\x1b[0m',
@@ -31,6 +32,11 @@ let detectedPort = null;
 
 // Regex to match rsbuild's local URL output (e.g., "➜ Local:    http://localhost:3000/")
 const portRegex = /Local:\s+http:\/\/localhost:(\d+)/;
+const ansiRegex = /\x1b\[[0-9;]*m/g;
+
+function stripAnsi(str) {
+  return str.replace(ansiRegex, '');
+}
 
 console.log(`\n${colors.bright}${colors.yellow}🚀 Starting Bruno development environment...${colors.reset}\n`);
 
@@ -47,7 +53,7 @@ webProcess.stdout.on('data', (data) => {
 
   // Try to detect the port from rsbuild output
   if (!detectedPort) {
-    const match = output.match(portRegex);
+    const match = stripAnsi(output).match(portRegex);
     if (match) {
       detectedPort = match[1];
       log.success(`Detected dev server on port ${colors.bright}${detectedPort}${colors.reset}`);
@@ -57,7 +63,17 @@ webProcess.stdout.on('data', (data) => {
 });
 
 webProcess.stderr.on('data', (data) => {
-  process.stderr.write(data.toString());
+  const output = data.toString();
+  process.stderr.write(output);
+
+  if (!detectedPort) {
+    const match = stripAnsi(output).match(portRegex);
+    if (match) {
+      detectedPort = match[1];
+      log.success(`Detected dev server on port ${colors.bright}${detectedPort}${colors.reset}`);
+      startElectron(detectedPort);
+    }
+  }
 });
 
 webProcess.on('close', (code) => {
@@ -68,10 +84,11 @@ webProcess.on('close', (code) => {
 function startElectron(port) {
   log.info(`Starting Electron with ${colors.cyan}BRUNO_DEV_PORT=${port}${colors.reset}`);
 
-  electronProcess = spawn('npm', ['run', 'dev'], {
-    cwd: electronDir,
+  const electronBin = require(path.join(rootDir, 'node_modules/electron'));
+
+  electronProcess = spawn(electronBin, [electronDir], {
     stdio: 'inherit',
-    shell: true,
+    shell: false,
     env: {
       ...process.env,
       BRUNO_DEV_PORT: port

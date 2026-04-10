@@ -2,7 +2,7 @@ require('dotenv').config({ path: process.env.DOTENV_PATH });
 
 const config = {
   appId: 'com.usebruno.app',
-  productName: 'Bruno',
+  productName: 'Curly CATS',
   electronVersion: '37.6.1',
   directories: {
     buildResources: 'resources',
@@ -41,7 +41,7 @@ const config = {
     notarize: false,
     protocols: [
       {
-        name: 'Bruno',
+        name: 'Curly CATS',
         schemes: [
           'bruno'
         ]
@@ -67,7 +67,7 @@ const config = {
     ],
     protocols: [
       {
-        name: 'Bruno',
+        name: 'Curly CATS',
         schemes: ['bruno']
       }
     ],
@@ -101,7 +101,7 @@ const config = {
       }
     ],
     sign: null,
-    publisherName: 'Bruno Software Inc'
+    publisherName: 'Curly CATS'
   },
   nsis: {
     oneClick: false,

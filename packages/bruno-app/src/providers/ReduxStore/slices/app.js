@@ -69,7 +69,8 @@ const initialState = {
     collection: { query: '', expanded: false },
     global: { query: '', expanded: false }
   },
-  isCreatingCollection: false
+  isCreatingCollection: false,
+  isAiAssistantOpen: false
 };
 
 export const appSlice = createSlice({
@@ -174,6 +175,9 @@ export const appSlice = createSlice({
     },
     setIsCreatingCollection: (state, action) => {
       state.isCreatingCollection = action.payload;
+    },
+    toggleAiAssistant: (state) => {
+      state.isAiAssistantOpen = !state.isAiAssistantOpen;
     }
   },
   extraReducers: (builder) => {
@@ -220,7 +224,8 @@ export const {
   setClipboard,
   setEnvVarSearchQuery,
   setEnvVarSearchExpanded,
-  setIsCreatingCollection
+  setIsCreatingCollection,
+  toggleAiAssistant
 } = appSlice.actions;
 
 export const savePreferences = (preferences) => (dispatch, getState) => {

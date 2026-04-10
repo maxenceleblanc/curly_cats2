@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import find from 'lodash/find';
-import { IconSettings, IconCookie, IconTool, IconSearch, IconPalette, IconBrandGithub } from '@tabler/icons';
+import { IconSettings, IconCookie, IconTool, IconSearch, IconPalette, IconBrandGithub, IconBrain } from '@tabler/icons';
 import Mousetrap from 'mousetrap';
 import { getKeyBindingsForActionAllOS } from 'providers/Hotkeys/keyMappings';
 import ToolHint from 'components/ToolHint';
@@ -10,6 +10,7 @@ import Notifications from 'components/Notifications';
 import Portal from 'components/Portal';
 import ThemeDropdown from './ThemeDropdown';
 import { openConsole } from 'providers/ReduxStore/slices/logs';
+import { toggleAiAssistant } from 'providers/ReduxStore/slices/app';
 import { addTab } from 'providers/ReduxStore/slices/tabs';
 import { useApp } from 'providers/App';
 import StyledWrapper from './StyledWrapper';
@@ -32,8 +33,14 @@ const StatusBar = () => {
 
   const errorCount = logs.filter((log) => log.type === 'error').length;
 
+  const isAiAssistantOpen = useSelector((state) => state.app.isAiAssistantOpen);
+
   const handleConsoleClick = () => {
     dispatch(openConsole());
+  };
+
+  const handleAiAssistantClick = () => {
+    dispatch(toggleAiAssistant());
   };
 
   const handlePreferencesClick = () => {
@@ -144,6 +151,19 @@ const StatusBar = () => {
               <div className="console-button-content">
                 <IconCookie size={16} strokeWidth={1.5} aria-hidden="true" />
                 <span className="console-label">Cookies</span>
+              </div>
+            </button>
+
+            <button
+              className={`status-bar-button ${isAiAssistantOpen ? 'active' : ''}`}
+              data-trigger="ai-assistant"
+              onClick={handleAiAssistantClick}
+              tabIndex={0}
+              aria-label="Open AI Assistant"
+            >
+              <div className="console-button-content">
+                <IconBrain size={16} strokeWidth={1.5} aria-hidden="true" />
+                <span className="console-label">Assistant AI</span>
               </div>
             </button>
 

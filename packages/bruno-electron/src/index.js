@@ -52,6 +52,7 @@ const { preferencesUtil, getPreferences, savePreferences } = require('./store/pr
 const { globalEnvironmentsManager } = require('./store/workspace-environments');
 const registerNotificationsIpc = require('./ipc/notifications');
 const registerGlobalEnvironmentsIpc = require('./ipc/global-environments');
+const { registerAiAssistantIpc } = require('./ipc/ai-assistant');
 const TerminalManager = require('./ipc/terminal');
 const { safeParseJSON, safeStringifyJSON } = require('./utils/common');
 const { getDomainsWithCookies } = require('./utils/cookies');
@@ -236,7 +237,7 @@ app.on('ready', async () => {
       preload: path.join(__dirname, 'preload.js'),
       webviewTag: true
     },
-    title: 'Bruno',
+    title: 'Curly CATS',
     icon: path.join(__dirname, 'about/256x256.png'),
     titleBarStyle: isMac ? 'hiddenInset' : isWindows ? 'hidden' : undefined,
     frame: isLinux ? false : true,
@@ -322,15 +323,16 @@ app.on('ready', async () => {
   ipcMain.handle('renderer:open-about', () => {
     const { version } = require('../package.json');
     const aboutBruno = require('./app/about-bruno');
+    const logoPath = path.join(__dirname, 'about/256x256.png').replace(/\\/g, '/');
     const aboutWindow = new BrowserWindow({
       width: 350,
-      height: 250,
+      height: 280,
       webPreferences: {
         nodeIntegration: true
       }
     });
     aboutWindow.removeMenu();
-    aboutWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(aboutBruno({ version }))}`);
+    aboutWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(aboutBruno({ version, logoPath }))}`);
   });
 
   mainWindow.once('ready-to-show', () => {
@@ -469,6 +471,7 @@ app.on('ready', async () => {
   registerSystemMonitorIpc(mainWindow, systemMonitor);
   registerGitIpc(mainWindow);
   registerOpenAPISyncIpc(mainWindow);
+  registerAiAssistantIpc();
 });
 
 // Quit the app once all windows are closed

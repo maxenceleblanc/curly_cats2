@@ -17,7 +17,7 @@ export const exportCollection = (collection, version) => {
     openCollection.extensions.bruno = {};
   }
   openCollection.extensions.bruno.exportedAt = new Date().toISOString();
-  openCollection.extensions.bruno.exportedUsing = version ? `Bruno/${version}` : 'Bruno';
+  openCollection.extensions.bruno.exportedUsing = version ? `Curly CATS/${version}` : 'Curly CATS';
 
   const yamlContent = jsyaml.dump(openCollection, {
     indent: 2,
