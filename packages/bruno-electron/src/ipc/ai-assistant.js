@@ -4,6 +4,14 @@ const axios = require('axios');
 const SYSTEM_PREFIX
   = 'J\'utilise l\'outil de test API Bruno et je souhaite que tu m\'assistes dans ce cadre, voici ma demande :';
 
+const DEBUG = process.env.CURLY_AI_DEBUG === '1';
+
+function dbg(label, data) {
+  if (!DEBUG) return;
+  console.log(`\n[AI DEBUG] ${label}`);
+  console.log(typeof data === 'string' ? data : JSON.stringify(data, null, 2));
+}
+
 async function fetchToken() {
   const xcoUrl = process.env.CURLY_XCO_URL;
   const clientId = process.env.CURLY_XCO_CLIENT_ID;
@@ -14,17 +22,33 @@ async function fetchToken() {
   }
 
   const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+  const body = 'grant_type=client_credentials&scope=openid';
 
-  const response = await axios.post(
-    xcoUrl,
-    'grant_type=client_credentials&scope=openid',
-    {
+  dbg('IDP — requête', {
+    url: xcoUrl,
+    method: 'POST',
+    headers: { 'Authorization': 'Basic <masqué>', 'Content-Type': 'application/x-www-form-urlencoded' },
+    body
+  });
+
+  let response;
+  try {
+    response = await axios.post(xcoUrl, body, {
       headers: {
         'Authorization': `Basic ${credentials}`,
         'Content-Type': 'application/x-www-form-urlencoded'
       }
-    }
-  );
+    });
+  } catch (err) {
+    dbg('IDP — erreur HTTP', {
+      status: err?.response?.status,
+      statusText: err?.response?.statusText,
+      data: err?.response?.data
+    });
+    throw new Error(`IDP ${err?.response?.status ?? ''} : ${JSON.stringify(err?.response?.data ?? err?.message)}`);
+  }
+
+  dbg('IDP — réponse', { status: response.status, data: response.data });
 
   const token = response.data?.access_token || response.data?.token;
   if (!token || typeof token !== 'string') {
@@ -37,7 +61,7 @@ async function fetchToken() {
 const registerAiAssistantIpc = () => {
   ipcMain.handle('send-ai-message', async (event, { messages, context }) => {
     const apiUrl = process.env.CURLY_AI_API_URL;
-    const model = process.env.CURLY_AI_MODEL || 'gpt-4o';
+    const model = process.env.CURLY_AI_MODEL_SUBSCRIPTION_ID || 'gpt-4o';
 
     if (!apiUrl) {
       event.sender.send('ai-response-error', 'CURLY_AI_API_URL non configurée.');
@@ -82,18 +106,25 @@ const registerAiAssistantIpc = () => {
       return msg;
     });
 
+    const requestBody = { model, messages: withContext, stream: true };
+
+    dbg('LLM — requête', {
+      url: apiUrl,
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer <token>', 'Content-Type': 'application/json' },
+      body: requestBody
+    });
+
     try {
-      const response = await axios.post(
-        apiUrl,
-        { model, messages: withContext, stream: true },
-        {
-          responseType: 'stream',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          }
+      const response = await axios.post(apiUrl, requestBody, {
+        responseType: 'stream',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         }
-      );
+      });
+
+      dbg('LLM — réponse headers', { status: response.status, headers: response.headers });
 
       response.data.on('data', (chunk) => {
         const lines = chunk.toString().split('\n').filter((l) => l.trim());
@@ -121,6 +152,11 @@ const registerAiAssistantIpc = () => {
         event.sender.send('ai-response-error', err.message);
       });
     } catch (err) {
+      dbg('LLM — erreur HTTP', {
+        status: err?.response?.status,
+        statusText: err?.response?.statusText,
+        data: err?.response?.data
+      });
       const msg = err?.response?.data?.error?.message || err?.message || 'Erreur inconnue.';
       event.sender.send('ai-response-error', msg);
     }

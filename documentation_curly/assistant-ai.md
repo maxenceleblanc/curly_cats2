@@ -59,7 +59,7 @@ grant_type=client_credentials&scope=openid
 | Variable | Obligatoire | Description | Exemple |
 |---|---|---|---|
 | `CURLY_AI_API_URL` | Oui | URL complète de l'endpoint de l'API LLM | `https://llm.monentreprise.com/v1/chat/completions` |
-| `CURLY_AI_MODEL` | Non | Nom du modèle à utiliser. Défaut : `gpt-4o` | `mistral-large`, `llama3`, `gpt-4o` |
+| `CURLY_AI_MODEL_SUBSCRIPTION_ID` | Non | Nom du modèle à utiliser. Défaut : `gpt-4o` | `mistral-large`, `llama3`, `gpt-4o` |
 
 ### Définir les variables
 
@@ -70,7 +70,7 @@ $env:CURLY_XCO_URL           = "https://idp.monentreprise.com/oauth/token"
 $env:CURLY_XCO_CLIENT_ID     = "mon-client-id"
 $env:CURLY_XCO_CLIENT_SECRET = "mon-secret"
 $env:CURLY_AI_API_URL        = "https://llm.monentreprise.com/v1/chat/completions"
-$env:CURLY_AI_MODEL          = "nom-du-modele"
+$env:CURLY_AI_MODEL_SUBSCRIPTION_ID          = "nom-du-modele"
 npm run dev
 ```
 
@@ -81,7 +81,7 @@ npm run dev
 [System.Environment]::SetEnvironmentVariable("CURLY_XCO_CLIENT_ID",     "mon-client-id", "User")
 [System.Environment]::SetEnvironmentVariable("CURLY_XCO_CLIENT_SECRET", "mon-secret", "User")
 [System.Environment]::SetEnvironmentVariable("CURLY_AI_API_URL",        "https://llm.monentreprise.com/v1/chat/completions", "User")
-[System.Environment]::SetEnvironmentVariable("CURLY_AI_MODEL",          "nom-du-modele", "User")
+[System.Environment]::SetEnvironmentVariable("CURLY_AI_MODEL_SUBSCRIPTION_ID",          "nom-du-modele", "User")
 ```
 
 Redémarrer le terminal après cette commande pour que les variables soient prises en compte.
@@ -95,7 +95,7 @@ CURLY_XCO_URL=https://idp.monentreprise.com/oauth/token
 CURLY_XCO_CLIENT_ID=mon-client-id
 CURLY_XCO_CLIENT_SECRET=mon-secret
 CURLY_AI_API_URL=https://llm.monentreprise.com/v1/chat/completions
-CURLY_AI_MODEL=nom-du-modele
+CURLY_AI_MODEL_SUBSCRIPTION_ID=nom-du-modele
 ```
 
 Puis charger ce fichier avant de lancer Bruno :
@@ -121,12 +121,12 @@ L'Assistant AI utilise le format **OpenAI-compatible** (standard de facto suppor
 ### Format de la requête envoyée
 
 ```json
-POST {BRUNO_AI_API_URL}
-Authorization: Bearer {BRUNO_AI_API_KEY}
+POST {CURLY_AI_API_URL}
+Authorization: Bearer {token obtenu via IDP}
 Content-Type: application/json
 
 {
-  "model": "{BRUNO_AI_MODEL}",
+  "model": "{CURLY_AI_MODEL_SUBSCRIPTION_ID}",
   "stream": true,
   "messages": [
     {
@@ -201,14 +201,14 @@ event.sender.send('ai-response-end') quand terminé
 
 Vérifier que Bruno a bien été relancé après les modifications. S'assurer que `npm run dev` démarre sans erreur.
 
-### "BRUNO_AI_API_URL non configurée"
+### "CURLY_AI_API_URL non configurée"
 
-La variable d'environnement `BRUNO_AI_API_URL` est absente. La définir dans PowerShell **avant** de lancer `npm run dev` (voir section Configuration).
+La variable d'environnement `CURLY_AI_API_URL` est absente. La définir dans PowerShell **avant** de lancer `npm run dev` (voir section Configuration).
 
 ### Pas de réponse / timeout
 
 - Vérifier que l'URL de l'API est accessible depuis la machine
-- Vérifier la clé API (`BRUNO_AI_API_KEY`)
+- Vérifier les variables IDP (`CURLY_XCO_URL`, `CURLY_XCO_CLIENT_ID`, `CURLY_XCO_CLIENT_SECRET`)
 - Vérifier que l'API supporte bien le streaming SSE (`"stream": true`)
 
 ### La réponse ne s'affiche pas en streaming
