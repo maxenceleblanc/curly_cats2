@@ -4,14 +4,52 @@ const axios = require('axios');
 const SYSTEM_PREFIX
   = 'J\'utilise l\'outil de test API Bruno et je souhaite que tu m\'assistes dans ce cadre, voici ma demande :';
 
+async function fetchToken() {
+  const xcoUrl = process.env.CURLY_XCO_URL;
+  const clientId = process.env.CURLY_XCO_CLIENT_ID;
+  const clientSecret = process.env.CURLY_XCO_CLIENT_SECRET;
+
+  if (!xcoUrl || !clientId || !clientSecret) {
+    throw new Error('Variables CURLY_XCO_URL, CURLY_XCO_CLIENT_ID et CURLY_XCO_CLIENT_SECRET requises.');
+  }
+
+  const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+
+  const response = await axios.post(
+    xcoUrl,
+    'grant_type=client_credentials&scope=openid',
+    {
+      headers: {
+        'Authorization': `Basic ${credentials}`,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }
+    }
+  );
+
+  const token = response.data?.access_token || response.data?.token;
+  if (!token || typeof token !== 'string') {
+    throw new Error('Token introuvable dans la réponse de l\'API d\'authentification.');
+  }
+
+  return token;
+}
+
 const registerAiAssistantIpc = () => {
   ipcMain.handle('send-ai-message', async (event, { messages, context }) => {
-    const apiUrl = process.env.BRUNO_AI_API_URL;
-    const apiKey = process.env.BRUNO_AI_API_KEY;
-    const model = process.env.BRUNO_AI_MODEL || 'gpt-4o';
+    const apiUrl = process.env.CURLY_AI_API_URL;
+    const model = process.env.CURLY_AI_MODEL || 'gpt-4o';
 
     if (!apiUrl) {
-      event.sender.send('ai-response-error', 'BRUNO_AI_API_URL non configurée.');
+      event.sender.send('ai-response-error', 'CURLY_AI_API_URL non configurée.');
+      return;
+    }
+
+    // Retrieve token from IDP before calling the AI API
+    let token;
+    try {
+      token = await fetchToken();
+    } catch (err) {
+      event.sender.send('ai-response-error', `Échec de l'authentification : ${err.message}`);
       return;
     }
 
@@ -52,7 +90,7 @@ const registerAiAssistantIpc = () => {
           responseType: 'stream',
           headers: {
             'Content-Type': 'application/json',
-            ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {})
+            'Authorization': `Bearer ${token}`
           }
         }
       );

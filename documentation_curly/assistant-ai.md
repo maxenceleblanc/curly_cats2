@@ -35,29 +35,53 @@ L'Assistant AI se configure via des **variables d'environnement** à définir av
 
 ### Variables d'environnement
 
+#### Authentification IDP (obligatoire)
+
+Le token Bearer est obtenu automatiquement avant chaque appel au LLM via un IDP (flow OAuth 2.0 Client Credentials).
+
 | Variable | Obligatoire | Description | Exemple |
 |---|---|---|---|
-| `BRUNO_AI_API_URL` | Oui | URL complète de l'endpoint de l'API LLM | `https://llm.monentreprise.com/v1/chat/completions` |
-| `BRUNO_AI_API_KEY` | Non | Clé d'API pour l'authentification (envoyée en Bearer token) | `sk-xxxxxxxxxxxxxxxx` |
-| `BRUNO_AI_MODEL` | Non | Nom du modèle à utiliser. Défaut : `gpt-4o` | `mistral-large`, `llama3`, `gpt-4o` |
+| `CURLY_XCO_URL` | Oui | URL du endpoint token de l'IDP | `https://idp.monentreprise.com/oauth/token` |
+| `CURLY_XCO_CLIENT_ID` | Oui | Client ID pour l'authentification Basic | `mon-client-id` |
+| `CURLY_XCO_CLIENT_SECRET` | Oui | Client Secret pour l'authentification Basic | `mon-secret` |
+
+Requête envoyée à l'IDP :
+```
+POST {CURLY_XCO_URL}
+Authorization: Basic base64(client_id:client_secret)
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=client_credentials&scope=openid
+```
+
+#### API LLM
+
+| Variable | Obligatoire | Description | Exemple |
+|---|---|---|---|
+| `CURLY_AI_API_URL` | Oui | URL complète de l'endpoint de l'API LLM | `https://llm.monentreprise.com/v1/chat/completions` |
+| `CURLY_AI_MODEL` | Non | Nom du modèle à utiliser. Défaut : `gpt-4o` | `mistral-large`, `llama3`, `gpt-4o` |
 
 ### Définir les variables
 
 #### Sous PowerShell (session courante)
 
 ```powershell
-$env:BRUNO_AI_API_URL = "https://llm.monentreprise.com/v1/chat/completions"
-$env:BRUNO_AI_API_KEY = "votre-clé-api"
-$env:BRUNO_AI_MODEL  = "nom-du-modele"
+$env:CURLY_XCO_URL           = "https://idp.monentreprise.com/oauth/token"
+$env:CURLY_XCO_CLIENT_ID     = "mon-client-id"
+$env:CURLY_XCO_CLIENT_SECRET = "mon-secret"
+$env:CURLY_AI_API_URL        = "https://llm.monentreprise.com/v1/chat/completions"
+$env:CURLY_AI_MODEL          = "nom-du-modele"
 npm run dev
 ```
 
 #### Sous PowerShell (persistant pour l'utilisateur)
 
 ```powershell
-[System.Environment]::SetEnvironmentVariable("BRUNO_AI_API_URL", "https://llm.monentreprise.com/v1/chat/completions", "User")
-[System.Environment]::SetEnvironmentVariable("BRUNO_AI_API_KEY", "votre-clé-api", "User")
-[System.Environment]::SetEnvironmentVariable("BRUNO_AI_MODEL", "nom-du-modele", "User")
+[System.Environment]::SetEnvironmentVariable("CURLY_XCO_URL",           "https://idp.monentreprise.com/oauth/token", "User")
+[System.Environment]::SetEnvironmentVariable("CURLY_XCO_CLIENT_ID",     "mon-client-id", "User")
+[System.Environment]::SetEnvironmentVariable("CURLY_XCO_CLIENT_SECRET", "mon-secret", "User")
+[System.Environment]::SetEnvironmentVariable("CURLY_AI_API_URL",        "https://llm.monentreprise.com/v1/chat/completions", "User")
+[System.Environment]::SetEnvironmentVariable("CURLY_AI_MODEL",          "nom-du-modele", "User")
 ```
 
 Redémarrer le terminal après cette commande pour que les variables soient prises en compte.
@@ -67,9 +91,11 @@ Redémarrer le terminal après cette commande pour que les variables soient pris
 Créer un fichier `.env` à la racine du projet (non versionné) :
 
 ```env
-BRUNO_AI_API_URL=https://llm.monentreprise.com/v1/chat/completions
-BRUNO_AI_API_KEY=votre-clé-api
-BRUNO_AI_MODEL=nom-du-modele
+CURLY_XCO_URL=https://idp.monentreprise.com/oauth/token
+CURLY_XCO_CLIENT_ID=mon-client-id
+CURLY_XCO_CLIENT_SECRET=mon-secret
+CURLY_AI_API_URL=https://llm.monentreprise.com/v1/chat/completions
+CURLY_AI_MODEL=nom-du-modele
 ```
 
 Puis charger ce fichier avant de lancer Bruno :
