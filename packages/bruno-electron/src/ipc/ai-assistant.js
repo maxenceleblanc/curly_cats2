@@ -82,6 +82,8 @@ async function fetchToken() {
     throw new Error('Variables CURLY_XCO_URL, CURLY_XCO_CLIENT_ID et CURLY_XCO_CLIENT_SECRET requises.');
   }
 
+  dbg('IDP — configuration', { url: xcoUrl, protocol: new URL(xcoUrl).protocol });
+
   const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
   const body = 'grant_type=client_credentials&scope=openid';
 
@@ -101,15 +103,27 @@ async function fetchToken() {
       headers: {
         'Authorization': `Basic ${credentials}`,
         'Content-Type': 'application/x-www-form-urlencoded'
-      }
+      },
+      validateStatus: () => true
     });
   } catch (err) {
-    dbg('IDP — erreur HTTP', {
-      status: err?.response?.status,
-      statusText: err?.response?.statusText,
-      data: err?.response?.data
+    dbg('IDP — erreur réseau', {
+      message: err?.message,
+      code: err?.code,
+      errno: err?.errno
     });
-    throw new Error(`IDP ${err?.response?.status ?? ''} : ${JSON.stringify(err?.response?.data ?? err?.message)}`);
+    throw new Error(`IDP erreur réseau : ${err?.message}`);
+  }
+
+  dbg('IDP — réponse brute', { status: response.status, statusText: response.statusText, dataLength: response.data?.length });
+
+  if (response.status !== 200) {
+    dbg('IDP — erreur HTTP', {
+      status: response.status,
+      statusText: response.statusText,
+      data: response.data
+    });
+    throw new Error(`IDP ${response.status} : ${JSON.stringify(response.data ?? response.statusText)}`);
   }
 
   dbg('IDP — réponse', { status: response.status, data: response.data });
@@ -182,14 +196,18 @@ const registerAiAssistantIpc = () => {
     try {
       const agents = await buildAgentsForUrl(apiUrl);
 
+      console.log('[AI] Envoi requête LLM vers:', apiUrl);
       const response = await axios.post(apiUrl, requestBody, {
         ...agents,
         responseType: 'stream',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
-        }
+        },
+        validateStatus: () => true
       });
+
+      console.log('[AI] Réponse LLM reçue - Status:', response.status);
 
       dbg('LLM — réponse headers', { status: response.status, headers: response.headers });
 
@@ -222,7 +240,9 @@ const registerAiAssistantIpc = () => {
       dbg('LLM — erreur HTTP', {
         status: err?.response?.status,
         statusText: err?.response?.statusText,
-        data: err?.response?.data
+        data: err?.response?.data,
+        message: err?.message,
+        code: err?.code
       });
       const msg = err?.response?.data?.error?.message || err?.message || 'Erreur inconnue.';
       event.sender.send('ai-response-error', msg);
