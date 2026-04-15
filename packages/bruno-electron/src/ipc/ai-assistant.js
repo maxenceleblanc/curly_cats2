@@ -159,33 +159,31 @@ const registerAiAssistantIpc = () => {
     // Build context block appended to the last user message
     let contextBlock = '';
     if (context?.url) {
-      contextBlock += `\n\n---\nContexte de la requête Bruno :\n- Méthode : ${context.method}\n- URL : ${context.url}`;
+      contextBlock += `\n\n---\nContexte de la requete Bruno :\n- Methode : ${context.method}\n- URL : ${context.url}`;
       if (context.status != null) {
-        contextBlock += `\n- Statut de la réponse : ${context.status}`;
+        contextBlock += `\n- Statut de la reponse : ${context.status}`;
       }
       if (context.responseData) {
-        contextBlock += `\n- Corps de la réponse :\n${context.responseData}`;
+        contextBlock += `\n- Corps de la reponse :\n${context.responseData}`;
       }
       contextBlock += '\n---';
     }
 
-    // Prepend system prefix to first user message
-    const enrichedMessages = messages.map((msg, i) => {
-      if (i === 0 && msg.role === 'user') {
-        return { role: 'user', content: `${SYSTEM_PREFIX}\n\n${msg.content}` };
-      }
-      return msg;
-    });
-
     // Append context to last user message
-    const withContext = enrichedMessages.map((msg, i) => {
-      if (i === enrichedMessages.length - 1 && msg.role === 'user' && contextBlock) {
+    const withContext = messages.map((msg, i) => {
+      if (i === messages.length - 1 && msg.role === 'user' && contextBlock) {
         return { role: 'user', content: msg.content + contextBlock };
       }
       return msg;
     });
 
-    const requestBody = { model, messages: withContext, stream: true };
+    // System prefix as a dedicated system message at the top
+    const finalMessages = [
+      { role: 'system', content: SYSTEM_PREFIX },
+      ...withContext
+    ];
+
+    const requestBody = { model, messages: finalMessages, stream: false, temperature: 1 };
 
     dbg('LLM request', {
       url: apiUrl,
@@ -201,7 +199,6 @@ const registerAiAssistantIpc = () => {
       const response = await axios.post(apiUrl, requestBody, {
         ...agents,
         proxy: false,
-        responseType: 'stream',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
@@ -212,32 +209,21 @@ const registerAiAssistantIpc = () => {
       console.log('[AI] LLM response received - Status:', response.status);
 
       dbg('LLM response headers', { status: response.status, headers: response.headers });
+      dbg('LLM response body', response.data);
 
-      response.data.on('data', (chunk) => {
-        const lines = chunk.toString().split('\n').filter((l) => l.trim());
-        for (const line of lines) {
-          if (!line.startsWith('data:')) continue;
-          const raw = line.replace(/^data:\s*/, '');
-          if (raw === '[DONE]') continue;
-          try {
-            const json = JSON.parse(raw);
-            const content = json.choices?.[0]?.delta?.content;
-            if (content) {
-              event.sender.send('ai-response-chunk', content);
-            }
-          } catch {
-            // ignore malformed chunks
-          }
-        }
-      });
+      if (response.status !== 200) {
+        const errMsg = response.data?.error?.message || JSON.stringify(response.data) || response.statusText;
+        event.sender.send('ai-response-error', `LLM ${response.status} : ${errMsg}`);
+        return;
+      }
 
-      response.data.on('end', () => {
-        event.sender.send('ai-response-end');
-      });
-
-      response.data.on('error', (err) => {
-        event.sender.send('ai-response-error', err.message);
-      });
+      const content = response.data?.choices?.[0]?.message?.content;
+      if (content) {
+        event.sender.send('ai-response-chunk', content);
+      } else {
+        event.sender.send('ai-response-error', 'Reponse LLM vide ou format inattendu.');
+      }
+      event.sender.send('ai-response-end');
     } catch (err) {
       dbg('LLM HTTP error', {
         status: err?.response?.status,
