@@ -82,15 +82,15 @@ async function fetchToken() {
     throw new Error('Variables CURLY_XCO_URL, CURLY_XCO_CLIENT_ID et CURLY_XCO_CLIENT_SECRET requises.');
   }
 
-  dbg('IDP — configuration', { url: xcoUrl, protocol: new URL(xcoUrl).protocol });
+  dbg('IDP configuration', { url: xcoUrl, protocol: new URL(xcoUrl).protocol });
 
   const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
   const body = 'grant_type=client_credentials&scope=openid';
 
-  dbg('IDP — requête', {
+  dbg('IDP request', {
     url: xcoUrl,
     method: 'POST',
-    headers: { 'Authorization': 'Basic <masqué>', 'Content-Type': 'application/x-www-form-urlencoded' },
+    headers: { 'Authorization': 'Basic <hidden>', 'Content-Type': 'application/x-www-form-urlencoded' },
     body
   });
 
@@ -100,6 +100,7 @@ async function fetchToken() {
   try {
     response = await axios.post(xcoUrl, body, {
       ...agents,
+      proxy: false,
       headers: {
         'Authorization': `Basic ${credentials}`,
         'Content-Type': 'application/x-www-form-urlencoded'
@@ -107,7 +108,7 @@ async function fetchToken() {
       validateStatus: () => true
     });
   } catch (err) {
-    dbg('IDP — erreur réseau', {
+    dbg('IDP network error', {
       message: err?.message,
       code: err?.code,
       errno: err?.errno
@@ -115,10 +116,10 @@ async function fetchToken() {
     throw new Error(`IDP erreur réseau : ${err?.message}`);
   }
 
-  dbg('IDP — réponse brute', { status: response.status, statusText: response.statusText, dataLength: response.data?.length });
+  dbg('IDP raw response', { status: response.status, statusText: response.statusText, dataLength: response.data?.length });
 
   if (response.status !== 200) {
-    dbg('IDP — erreur HTTP', {
+    dbg('IDP HTTP error', {
       status: response.status,
       statusText: response.statusText,
       data: response.data
@@ -126,7 +127,7 @@ async function fetchToken() {
     throw new Error(`IDP ${response.status} : ${JSON.stringify(response.data ?? response.statusText)}`);
   }
 
-  dbg('IDP — réponse', { status: response.status, data: response.data });
+  dbg('IDP response', { status: response.status, data: response.data });
 
   const token = response.data?.access_token || response.data?.token;
   if (!token || typeof token !== 'string') {
@@ -186,7 +187,7 @@ const registerAiAssistantIpc = () => {
 
     const requestBody = { model, messages: withContext, stream: true };
 
-    dbg('LLM — requête', {
+    dbg('LLM request', {
       url: apiUrl,
       method: 'POST',
       headers: { 'Authorization': 'Bearer <token>', 'Content-Type': 'application/json' },
@@ -196,9 +197,10 @@ const registerAiAssistantIpc = () => {
     try {
       const agents = await buildAgentsForUrl(apiUrl);
 
-      console.log('[AI] Envoi requête LLM vers:', apiUrl);
+      console.log('[AI] Sending LLM request to:', apiUrl);
       const response = await axios.post(apiUrl, requestBody, {
         ...agents,
+        proxy: false,
         responseType: 'stream',
         headers: {
           'Content-Type': 'application/json',
@@ -207,9 +209,9 @@ const registerAiAssistantIpc = () => {
         validateStatus: () => true
       });
 
-      console.log('[AI] Réponse LLM reçue - Status:', response.status);
+      console.log('[AI] LLM response received - Status:', response.status);
 
-      dbg('LLM — réponse headers', { status: response.status, headers: response.headers });
+      dbg('LLM response headers', { status: response.status, headers: response.headers });
 
       response.data.on('data', (chunk) => {
         const lines = chunk.toString().split('\n').filter((l) => l.trim());
@@ -237,7 +239,7 @@ const registerAiAssistantIpc = () => {
         event.sender.send('ai-response-error', err.message);
       });
     } catch (err) {
-      dbg('LLM — erreur HTTP', {
+      dbg('LLM HTTP error', {
         status: err?.response?.status,
         statusText: err?.response?.statusText,
         data: err?.response?.data,
