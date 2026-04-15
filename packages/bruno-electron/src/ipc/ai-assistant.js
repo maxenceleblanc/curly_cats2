@@ -1,5 +1,8 @@
 const { ipcMain } = require('electron');
 const axios = require('axios');
+const { preferencesUtil } = require('../store/preferences');
+const { getCachedSystemProxy } = require('../store/system-proxy');
+const { setupProxyAgents } = require('../utils/proxy-util');
 
 const SYSTEM_PREFIX
   = 'J\'utilise l\'outil de test API Bruno et je souhaite que tu m\'assistes dans ce cadre, voici ma demande :';
@@ -10,6 +13,64 @@ function dbg(label, data) {
   if (!DEBUG) return;
   console.log(`\n[AI DEBUG] ${label}`);
   console.log(typeof data === 'string' ? data : JSON.stringify(data, null, 2));
+}
+
+/**
+ * Resolve proxy mode + config from global preferences (same logic as cert-utils.js).
+ */
+async function getGlobalProxySettings() {
+  const globalProxy = preferencesUtil.getGlobalProxyConfig();
+  const globalDisabled = (globalProxy?.disabled) ?? false;
+  const globalProxySource = globalProxy?.source ?? 'manual';
+
+  if (globalDisabled) {
+    return { proxyMode: 'off', proxyConfig: {}, proxyModeReason: 'App-level proxy is disabled' };
+  }
+
+  if (globalProxySource === 'pac') {
+    return { proxyMode: 'pac', proxyConfig: { pac: globalProxy.pac ?? {} }, proxyModeReason: '' };
+  }
+
+  if (globalProxySource === 'inherit') {
+    const systemProxy = await getCachedSystemProxy();
+    return {
+      proxyMode: 'system',
+      proxyConfig: systemProxy || { http_proxy: null, https_proxy: null, no_proxy: null },
+      proxyModeReason: ''
+    };
+  }
+
+  // source === 'manual'
+  return { proxyMode: 'on', proxyConfig: globalProxy?.config ?? {}, proxyModeReason: '' };
+}
+
+/**
+ * Build httpsAgent / httpAgent for a given URL using the app's proxy + SSL preferences.
+ * Returns an object { httpAgent?, httpsAgent? } ready to spread into axios config.
+ */
+async function buildAgentsForUrl(url) {
+  const rejectUnauthorized = preferencesUtil.shouldVerifyTls();
+  const httpsAgentRequestFields = { keepAlive: true, rejectUnauthorized };
+
+  const { proxyMode, proxyConfig, proxyModeReason } = await getGlobalProxySettings();
+
+  dbg('Proxy settings', { proxyMode, proxyModeReason, proxyConfig });
+
+  const requestConfig = { url };
+
+  await setupProxyAgents({
+    requestConfig,
+    proxyMode,
+    proxyModeReason,
+    proxyConfig,
+    httpsAgentRequestFields,
+    interpolationOptions: {}
+  });
+
+  const agents = {};
+  if (requestConfig.httpsAgent) agents.httpsAgent = requestConfig.httpsAgent;
+  if (requestConfig.httpAgent) agents.httpAgent = requestConfig.httpAgent;
+  return agents;
 }
 
 async function fetchToken() {
@@ -31,9 +92,12 @@ async function fetchToken() {
     body
   });
 
+  const agents = await buildAgentsForUrl(xcoUrl);
+
   let response;
   try {
     response = await axios.post(xcoUrl, body, {
+      ...agents,
       headers: {
         'Authorization': `Basic ${credentials}`,
         'Content-Type': 'application/x-www-form-urlencoded'
@@ -116,7 +180,10 @@ const registerAiAssistantIpc = () => {
     });
 
     try {
+      const agents = await buildAgentsForUrl(apiUrl);
+
       const response = await axios.post(apiUrl, requestBody, {
+        ...agents,
         responseType: 'stream',
         headers: {
           'Content-Type': 'application/json',
